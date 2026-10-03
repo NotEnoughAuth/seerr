@@ -27,6 +27,7 @@ import {
 } from 'typeorm';
 import Issue from './Issue';
 import { MediaRequest } from './MediaRequest';
+import { MediaSubscribers } from './MediaSubscribers';
 import SeasonRequest from './SeasonRequest';
 import { UserPushSubscription } from './UserPushSubscription';
 import { UserSettings } from './UserSettings';
@@ -145,6 +146,9 @@ export class User {
 
   @OneToMany(() => UserPushSubscription, (pushSub) => pushSub.user)
   public pushSubscriptions: UserPushSubscription[];
+
+  @OneToMany(() => MediaSubscribers, (subscriber) => subscriber.user)
+  public subscriptions?: MediaSubscribers[];
 
   @OneToMany(() => Issue, (issue) => issue.createdBy, { cascade: true })
   public createdIssues: Issue[];

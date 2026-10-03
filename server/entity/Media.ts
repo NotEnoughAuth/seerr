@@ -8,6 +8,7 @@ import {
 import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
 import { Blocklist } from '@server/entity/Blocklist';
+import { MediaSubscribers } from '@server/entity/MediaSubscribers';
 import type { User } from '@server/entity/User';
 import { Watchlist } from '@server/entity/Watchlist';
 import type { DownloadingItem } from '@server/lib/downloadtracker';
@@ -217,6 +218,12 @@ class Media {
 
   @Column({ nullable: true, type: 'varchar' })
   public jellyfinMediaId4k?: string | null;
+
+  @OneToMany(() => MediaSubscribers, (subscriber) => subscriber.media, {
+    cascade: ['insert', 'remove'],
+    eager: true,
+  })
+  public subscribers?: MediaSubscribers[];
 
   public serviceUrl?: string;
   public serviceUrl4k?: string;

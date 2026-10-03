@@ -6,6 +6,7 @@ import type { TmdbKeyword } from '@server/api/themoviedb/interfaces';
 import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
+import { MediaSubscribers } from '@server/entity/MediaSubscribers';
 import { Watchlist } from '@server/entity/Watchlist';
 import logger from '@server/logger';
 import { mapTvResult } from '@server/models/Search';
@@ -220,6 +221,100 @@ tvRoutes.get('/:id/ratings', async (req, res, next) => {
     return next({
       status: 500,
       message: 'Unable to retrieve series ratings.',
+    });
+  }
+});
+
+tvRoutes.post('/:id/subscribe', async (req, res, next) => {
+  try {
+    const media = await Media.getMedia(Number(req.params.id), MediaType.TV);
+
+    if (!media) {
+      return next({
+        status: 404,
+        message: 'Media not found.',
+      });
+    }
+
+    if (!req.user) {
+      return next({
+        status: 401,
+        message: 'Unauthorized.',
+      });
+    }
+
+    const mediaSubscriber = new MediaSubscribers();
+    mediaSubscriber.media = media;
+    mediaSubscriber.user = req.user;
+
+    await getRepository(MediaSubscribers).save(mediaSubscriber);
+
+    return res.status(200).json({
+      message: 'Successfully subscribed to series.',
+    });
+  } catch (e) {
+    logger.debug('Something went wrong subscribing to series', {
+      label: 'API',
+      errorMessage: e.message,
+      tvId: req.params.id,
+    });
+    return next({
+      status: 500,
+      message: 'Unable to subscribe to series.',
+    });
+  }
+});
+
+tvRoutes.post('/:id/unsubscribe', async (req, res, next) => {
+  try {
+    const media = await Media.getMedia(Number(req.params.id), MediaType.TV);
+
+    if (!media) {
+      return next({
+        status: 404,
+        message: 'Media not found.',
+      });
+    }
+
+    if (!req.user) {
+      return next({
+        status: 401,
+        message: 'Unauthorized.',
+      });
+    }
+
+    const mediaSubscriber = await getRepository(MediaSubscribers).findOne({
+      where: {
+        media: {
+          id: media.id,
+        },
+        user: {
+          id: req.user.id,
+        },
+      },
+    });
+
+    if (!mediaSubscriber) {
+      return next({
+        status: 400,
+        message: 'Not subscribed to series.',
+      });
+    }
+
+    await getRepository(MediaSubscribers).remove(mediaSubscriber);
+
+    return res.status(200).json({
+      message: 'Successfully unsubscribed from series.',
+    });
+  } catch (e) {
+    logger.debug('Something went wrong unsubscribing from series', {
+      label: 'API',
+      errorMessage: e.message,
+      tvId: req.params.id,
+    });
+    return next({
+      status: 500,
+      message: 'Unable to unsubscribe from series.',
     });
   }
 });

@@ -4,7 +4,11 @@ import useSettings from '@app/hooks/useSettings';
 import { Permission, useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
-import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowDownTrayIcon,
+  BellIcon,
+  BellSlashIcon,
+} from '@heroicons/react/24/outline';
 import {
   CheckIcon,
   InformationCircleIcon,
@@ -23,6 +27,7 @@ const messages = defineMessages('components.RequestButton', {
   viewrequest4k: 'View 4K Request',
   requestmore: 'Request More',
   requestmore4k: 'Request More in 4K',
+  subscribe: 'Subscribe',
   approverequest: 'Approve Request',
   approverequest4k: 'Approve 4K Request',
   declinerequest: 'Decline Request',
@@ -120,6 +125,30 @@ const RequestButton = ({
 
     onUpdate();
     mutate('/api/v1/request/count');
+  };
+
+  const subscribeToMovie = async (): Promise<void> => {
+    await axios.post(`/api/v1/movie/${tmdbId}/subscribe`);
+
+    onUpdate();
+  };
+
+  const subscribeToTV = async (): Promise<void> => {
+    await axios.post(`/api/v1/tv/${tmdbId}/subscribe`);
+
+    onUpdate();
+  };
+
+  const unsubscribeFromMovie = async (): Promise<void> => {
+    await axios.post(`/api/v1/movie/${tmdbId}/unsubscribe`);
+
+    onUpdate();
+  };
+
+  const unsubscribeFromTV = async (): Promise<void> => {
+    await axios.post(`/api/v1/tv/${tmdbId}/unsubscribe`);
+
+    onUpdate();
   };
 
   const buttons: ButtonOption[] = [];
@@ -309,6 +338,99 @@ const RequestButton = ({
         setShowRequestModal(true);
       },
       svg: <ArrowDownTrayIcon />,
+    });
+  }
+
+  console.log(
+    user?.id,
+    media,
+    media?.subscribers?.some((subscriber) => subscriber.user.id === user?.id)
+  );
+
+  // Notification Subscibe Button for Movies
+  let canSubscribeToMovie = false;
+  if (
+    mediaType === 'movie' &&
+    media &&
+    media.requests?.some((request) =>
+      [MediaRequestStatus.PENDING, MediaRequestStatus.APPROVED].includes(
+        request.status
+      )
+    ) &&
+    media.status !== MediaStatus.AVAILABLE &&
+    !media.subscribers?.some((subscriber) => subscriber.user.id === user?.id) &&
+    !media.requests?.some((request) => request.requestedBy.id === user?.id)
+  ) {
+    canSubscribeToMovie = true;
+  }
+
+  if (canSubscribeToMovie) {
+    buttons.push({
+      id: 'subscribe',
+      text: intl.formatMessage(messages.subscribe),
+      action: () => {
+        void subscribeToMovie();
+      },
+      svg: <BellIcon />,
+    });
+  }
+
+  // Notification Subscribe Button for TV Shows
+  let canSubscribeToShow = false;
+  if (
+    mediaType === 'tv' &&
+    media &&
+    media.requests?.some((request) =>
+      [MediaRequestStatus.PENDING, MediaRequestStatus.APPROVED].includes(
+        request.status
+      )
+    ) &&
+    media.status !== MediaStatus.AVAILABLE &&
+    !media.subscribers?.some((subscriber) => subscriber.user.id === user?.id) &&
+    !media.requests?.some((request) => request.requestedBy.id === user?.id)
+  ) {
+    canSubscribeToShow = true;
+  }
+
+  if (canSubscribeToShow) {
+    buttons.push({
+      id: 'subscribe',
+      text: intl.formatMessage(messages.subscribe),
+      action: () => {
+        void subscribeToTV();
+      },
+      svg: <BellIcon />,
+    });
+  }
+
+  // Show Subscribed Icon
+  if (
+    media &&
+    media.subscribers?.some((subscriber) => subscriber.user.id === user?.id) &&
+    mediaType === 'movie'
+  ) {
+    buttons.push({
+      id: 'subscribed',
+      text: '',
+      action: () => {
+        void unsubscribeFromMovie();
+      },
+      svg: <BellSlashIcon className="text-gray-400" />,
+    });
+  }
+
+  if (
+    media &&
+    media.subscribers?.some((subscriber) => subscriber.user.id === user?.id) &&
+    mediaType === 'tv'
+  ) {
+    buttons.push({
+      id: 'subscribed',
+      text: '',
+      action: () => {
+        void unsubscribeFromTV();
+      },
+      svg: <BellSlashIcon className="text-gray-400" />,
     });
   }
 

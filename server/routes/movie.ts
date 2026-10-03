@@ -5,6 +5,7 @@ import TheMovieDb from '@server/api/themoviedb';
 import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
+import { MediaSubscribers } from '@server/entity/MediaSubscribers';
 import { Watchlist } from '@server/entity/Watchlist';
 import logger from '@server/logger';
 import { mapMovieDetails } from '@server/models/Movie';
@@ -235,6 +236,118 @@ movieRoutes.get('/:id/ratingscombined', async (req, res, next) => {
     return next({
       status: 500,
       message: 'Unable to retrieve movie ratings.',
+    });
+  }
+});
+
+movieRoutes.post('/:id/subscribe', async (req, res, next) => {
+  try {
+    const media = await Media.getMedia(Number(req.params.id), MediaType.MOVIE);
+
+    if (!media) {
+      return next({
+        status: 404,
+        message: 'Media not found.',
+      });
+    }
+
+    if (!req.user) {
+      return next({
+        status: 401,
+        message: 'Unauthorized.',
+      });
+    }
+
+    if (
+      await getRepository(MediaSubscribers).exist({
+        where: {
+          media: {
+            id: media.id,
+          },
+          user: {
+            id: req.user.id,
+          },
+        },
+      })
+    ) {
+      return next({
+        status: 400,
+        message: 'Already subscribed to movie.',
+      });
+    }
+
+    const mediaSubscriber = new MediaSubscribers();
+    mediaSubscriber.media = media;
+    mediaSubscriber.user = req.user;
+
+    await getRepository(MediaSubscribers).save(mediaSubscriber);
+
+    return res.status(200).json({
+      message: 'Successfully subscribed to movie.',
+    });
+  } catch (e) {
+    logger.debug('Something went wrong subscribing to movie', {
+      label: 'API',
+      errorMessage: e.message,
+      movieId: req.params.id,
+    });
+    return next({
+      status: 500,
+      message: 'Unable to subscribe to movie.',
+    });
+  }
+});
+
+movieRoutes.post('/:id/unsubscribe', async (req, res, next) => {
+  try {
+    const media = await Media.getMedia(Number(req.params.id), MediaType.MOVIE);
+
+    if (!media) {
+      return next({
+        status: 404,
+        message: 'Media not found.',
+      });
+    }
+
+    if (!req.user) {
+      return next({
+        status: 401,
+        message: 'Unauthorized.',
+      });
+    }
+
+    const mediaSubscriber = await getRepository(MediaSubscribers).findOne({
+      where: {
+        media: {
+          id: media.id,
+        },
+        user: {
+          id: req.user.id,
+        },
+      },
+    });
+
+    if (!mediaSubscriber) {
+      return next({
+        status: 400,
+        message: 'Not subscribed to movie.',
+      });
+    }
+
+    await getRepository(MediaSubscribers).remove(mediaSubscriber);
+
+    return res.status(200).json({
+      message: 'Successfully unsubscribed from movie.',
+    });
+  } catch (e) {
+    logger.debug('Something went wrong unsubscribing from movie', {
+      label: 'API',
+      errorMessage: e.message,
+      movieId: req.params.id,
+    });
+    return next({
+      status: 500,
+      message: 'Unable to unsubscribe from movie.',
     });
   }
 });
